@@ -3,9 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BS Admin Control</title>
+<title>XFourteen Society - Admin Control</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          heading: ['Sora', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        },
+        colors: {
+          slate: {
+            850: '#151e29',
+            950: '#0b0f14'
+          },
+          brand: {
+            light: '#35b8d1',
+            DEFAULT: '#1c8fa6',
+            dark: '#146579'
+          }
+        }
+      }
+    }
+  }
+</script>
 
 <!-- Firebase (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -13,28 +42,295 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <style>
-  :root{
-    --bg: #080c10;
-    --bg-soft: #0d1319;
-    --surface: #121a21;
-    --surface-2: #17212a;
-    --surface-3: #1c2833;
-    --border: #22303b;
-    --border-soft: #1a2530;
-    --accent: #1c8fa6;
-    --accent-bright: #35b8d1;
-    --accent-dim: rgba(28,143,166,.14);
-    --accent-line: rgba(53,184,209,.35);
-    --text: #e6edf2;
-    --text-dim: #8ea0ab;
-    --text-faint: #526270;
-    --vip: #dba14a;
-    --vip-dim: rgba(219,161,74,.14);
-    --free: #6b7c87;
-    --free-dim: rgba(107,124,135,.14);
-    --danger: #d8654c;
-    --danger-dim: rgba(216,101,76,.14);
-    --success: #45c98d;
+  /* Base & Scrollbar */
+  body {
+    background-color: #0b0f14;
+    color: #e2e8f0;
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.6); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(71, 85, 105, 0.9); }
+
+  /* Ambient Glow Backgrounds */
+  .glow-bg { position: fixed; top: -15%; left: -10%; width: 60vw; height: 60vh; background: radial-gradient(circle, rgba(28,143,166,0.12) 0%, transparent 60%); filter: blur(80px); z-index: -1; pointer-events: none; }
+  .glow-bg-2 { position: fixed; bottom: -15%; right: -10%; width: 50vw; height: 50vh; background: radial-gradient(circle, rgba(53,184,209,0.08) 0%, transparent 60%); filter: blur(80px); z-index: -1; pointer-events: none; }
+
+  /* Page Transitions (Controlled by JS) */
+  .page { display: none; animation: slideFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .page.active { display: block; }
+  @keyframes slideFade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Topbar Connection Status Dot */
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: all 0.3s ease; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); flex-shrink: 0; }
+  .dot.on { background: #10b981; box-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }
+  .dot.pending { background: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.5); }
+
+  /* Shell Output Lines */
+  .line-cmd { color: #38bdf8; font-weight: 500; }
+  .line-err { color: #f87171; }
+  .line-dim { color: #64748b; }
+
+  /* Dynamic Alert Messages */
+  .status-msg { display: none; margin-top: 1rem; padding: 0.875rem 1rem; border-radius: 0.75rem; font-size: 0.875rem; font-weight: 500; }
+  .status-msg.show { display: block; animation: slideFade 0.3s ease; }
+  .status-msg.ok { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+  .status-msg.err { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+  .status-msg.info { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
+
+  /* JS Injected User Rows */
+  .user-row { 
+    display: flex; align-items: center; gap: 1rem; padding: 1rem; 
+    background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(51, 65, 85, 0.5); 
+    border-radius: 1rem; transition: all 0.2s ease; margin-bottom: 0.5rem;
+  }
+  .user-row:hover { background: rgba(30, 41, 59, 0.8); border-color: rgba(71, 85, 105, 0.8); }
+  .user-avatar { 
+    width: 44px; height: 44px; flex-shrink: 0; border-radius: 0.75rem; 
+    background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(71, 85, 105, 0.4); 
+    display: flex; align-items: center; justify-content: center; 
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 700; color: #94a3b8; 
+  }
+  .user-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  .u-id { font-size: 0.9rem; font-weight: 600; color: #f8fafc; font-family: 'JetBrains Mono', monospace; }
+  .u-device { font-size: 0.75rem; color: #94a3b8; margin-top: 0.125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  
+  /* Badges */
+  .badge { font-size: 0.65rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+  .badge.free { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
+  .badge.vip { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: 0 0 12px rgba(245, 158, 11, 0.15); }
+  
+  /* JS Injected Buttons */
+  .btn-ghost { 
+    background: transparent; border: 1px solid rgba(71, 85, 105, 0.5); color: #94a3b8; 
+    padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; 
+    cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; 
+  }
+  .btn-ghost:hover { background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; }
+
+  /* Modal System */
+  .modal-overlay { 
+    position: fixed; inset: 0; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(8px); 
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 1.5rem; 
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .modal-overlay.show { display: flex; opacity: 1; animation: fadeIn 0.2s ease forwards; }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+  /* Bottom Nav JS State */
+  .nav-item.active { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+  .nav-item.active svg { stroke: #38bdf8; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4)); }
+
+  /* Select Arrow Background */
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+  }
+</style>
+</head>
+
+<body class="font-sans min-h-screen pb-28 relative overflow-x-hidden selection:bg-brand-light/30 selection:text-brand-light">
+<div class="glow-bg"></div>
+<div class="glow-bg-2"></div>
+
+<header class="sticky top-0 z-40 bg-slate-950/70 backdrop-blur-xl border-b border-white/5">
+  <div class="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 relative flex-shrink-0 drop-shadow-[0_0_12px_rgba(53,184,209,0.3)]">
+        <svg viewBox="0 0 100 88" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+          <path d="M62 4L14 30L27 30L10 62L45 46L34 40L44 34L62 46L100 26L86 26L96 4L62 22L68 26L60 30Z" fill="url(#g)"/>
+          <defs>
+            <linearGradient id="g" x1="10" y1="4" x2="100" y2="62" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#35b8d1"/>
+              <stop offset="1" stop-color="#146579"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="flex flex-col leading-tight">
+        <span class="font-heading font-bold text-lg bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-wide">X14 Admin Control</span>
+        <span class="text-[11px] font-medium text-slate-500 tracking-wider">By ./DziyX</span>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-2.5 bg-slate-900/80 border border-slate-700/50 px-3.5 py-1.5 rounded-full shadow-inner backdrop-blur-sm">
+      <span class="dot" id="connDot"></span>
+      <span id="connText" class="text-xs font-semibold text-slate-300">Disconnect</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-5 sm:px-6 pt-8">
+
+  <!-- ================= HOME ================= -->
+  <section class="page active" id="page-home">
+    <div class="mb-3 pl-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Environment Info</h2>
+    </div>
+    
+    <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-8 shadow-2xl shadow-black/40 relative overflow-hidden">
+      <!-- Subtle top inner highlight -->
+      <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+      
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-3 font-heading font-semibold text-slate-100 text-lg">
+          <svg class="w-5 h-5 text-brand-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+          System Core
+        </div>
+        <span class="font-mono text-xs font-semibold text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700" id="envVersion">v1.0.0</span>
+      </div>
+      
+      <div class="space-y-1">
+        <div class="flex items-center justify-between py-3 border-b border-slate-700/40">
+          <span class="flex items-center gap-2.5 text-sm text-slate-400"><svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 18h.01"/></svg>Platform</span>
+          <span class="font-mono text-sm font-semibold text-slate-200" id="envPlatform">-</span>
+        </div>
+        <div class="flex items-center justify-between py-3 border-b border-slate-700/40">
+          <span class="flex items-center gap-2.5 text-sm text-slate-400"><svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>Browser</span>
+          <span class="font-mono text-sm font-semibold text-slate-200" id="envBrowser">-</span>
+        </div>
+        <div class="flex items-center justify-between py-3 border-b border-slate-700/40">
+          <span class="flex items-center gap-2.5 text-sm text-slate-400"><svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Resolusi Layar</span>
+          <span class="font-mono text-sm font-semibold text-slate-200" id="envScreen">-</span>
+        </div>
+        <div class="flex items-center justify-between py-3">
+          <span class="flex items-center gap-2.5 text-sm text-slate-400"><svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 4 18 3-9h6"/></svg>Status Firebase</span>
+          <span class="font-mono text-sm font-semibold text-brand-light" id="envFirebase">Belum Terhubung</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3 pl-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Command Line</h2>
+    </div>
+    
+    <div class="bg-black border border-slate-800 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 mb-8 flex flex-col">
+      <div class="flex items-center gap-2 px-4 py-3 bg-slate-900 border-b border-slate-800">
+        <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+        <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+        <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+        <span class="ml-2 font-mono text-[11px] text-slate-500 font-semibold tracking-wider">shell@x14-admin — root</span>
+      </div>
+      
+      <div class="h-56 overflow-y-auto p-4 font-mono text-[13px] leading-loose text-emerald-400/90" id="shellOut"></div>
+      
+      <div class="flex items-center gap-3 px-4 py-3 border-t border-slate-800 bg-slate-900/50 focus-within:bg-slate-900 transition-colors">
+        <span class="font-mono text-brand-light font-bold text-sm">$</span>
+        <input type="text" id="shellInput" placeholder="ketik 'help' untuk daftar perintah" autocomplete="off" class="flex-1 bg-transparent border-none outline-none text-slate-200 font-mono text-sm placeholder-slate-600 focus:ring-0">
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FEATURE ================= -->
+  <section class="page" id="page-feature">
+    <div class="mb-3 pl-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Ringkasan Pengguna</h2>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4 mb-8">
+      <!-- Free Card -->
+      <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-5 relative overflow-hidden flex flex-col shadow-lg shadow-black/20">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+          <span class="text-xs font-semibold text-slate-400">User Free</span>
+        </div>
+        <div class="font-heading text-3xl font-bold text-slate-200" id="countFree">0</div>
+      </div>
+      
+      <!-- VIP Card -->
+      <div class="bg-slate-900/60 backdrop-blur-md border border-amber-500/20 rounded-2xl p-5 relative overflow-hidden flex flex-col shadow-lg shadow-amber-500/5">
+        <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-50"></div>
+        <div class="flex items-center gap-2 mb-3 relative">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"></span>
+          <span class="text-xs font-semibold text-amber-400/90">User VIP</span>
+        </div>
+        <div class="font-heading text-3xl font-bold text-amber-400 relative" id="countVip">0</div>
+      </div>
+    </div>
+
+    <div class="mb-3 pl-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Manajemen VIP</h2>
+    </div>
+    
+    <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-8 shadow-xl shadow-black/30 relative">
+      <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+      
+      <div class="flex flex-col sm:flex-row gap-4 mb-5">
+        <div class="flex-1">
+          <label for="vipIdInput" class="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">ID Pengguna</label>
+          <input type="text" id="vipIdInput" placeholder="Contoh: 00001" class="w-full bg-slate-950/50 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-light focus:ring-1 focus:ring-brand-light transition-all shadow-inner">
+        </div>
+        <div class="sm:w-48">
+          <label for="vipDuration" class="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Durasi</label>
+          <select id="vipDuration" class="w-full bg-slate-950/50 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-brand-light focus:ring-1 focus:ring-brand-light transition-all shadow-inner cursor-pointer pr-10">
+            <option value="30d" class="bg-slate-900">VIP 30 Day</option>
+            <option value="60d" class="bg-slate-900">VIP 60 Day</option>
+            <option value="90d" class="bg-slate-900">VIP 90 Day</option>
+            <option value="180d" class="bg-slate-900">VIP 180 Day</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button class="flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 bg-gradient-to-r from-brand-light to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20 active:scale-[0.98]" onclick="setVipById()">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+          Set VIP Member
+        </button>
+        <button class="flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 bg-transparent border border-slate-700 hover:border-rose-500/50 hover:bg-rose-500/10 text-slate-300 hover:text-rose-400 font-semibold rounded-xl text-sm transition-all active:scale-[0.98]" onclick="removeVipById()">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          Remove VIP
+        </button>
+      </div>
+      
+      <div class="status-msg" id="vipMsg"></div>
+    </div>
+
+    <div class="flex items-center justify-between mb-3 pl-1 pr-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Database Pengguna</h2>
+      <span class="font-mono text-xs text-slate-500 font-medium" id="userListCount">0 pengguna</span>
+    </div>
+    
+    <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 mb-8 shadow-xl shadow-black/30">
+      <div class="flex flex-col max-h-[480px] overflow-y-auto pr-2" id="userList">
+        <!-- Empty State -->
+        <div class="flex flex-col items-center justify-center text-center p-12 text-slate-500" id="userEmpty">
+          <svg class="w-12 h-12 mb-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/></svg>
+          <div class="text-sm font-medium leading-relaxed">Belum ada data pengguna.<br>Hubungkan Firebase di menu Settings.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="page" id="page-settings">
+    <div class="mb-3 pl-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Administrator Profile</h2>
+    </div>
+    
+    <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-5 mb-8 flex items-center gap-4 shadow-xl shadow-black/30 relative overflow-hidden">
+      <div class="absolute right-0 top-0 w-32 h-32 bg-brand-light/10 blur-3xl rounded-full"></div>
+      <div class="w-16 h-16 rounded-2xl flex-shrink-0 bg-gradient-to-br from-brand-light/20 to-slate-800 border border-brand-light/30 flex items-center justify-center shadow-inner">
+        <svg class="w-8 h-8 text-brand-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div>
+        <div class="font-heading text-lg font-bold text-white tracking-tight">Super Administrator</div>
+        <div class="font-mono text-sm text-slate-400 mt-1" id="profileEmail">Belum diatur</div>
+      </div>
+    </div>
+
+    <div class="mb-3 pl-1">
+      <h2 class="font-heading text-xs font-bold tracking-widest text-slate-400 uppercase">Konfigurasi Firebase</h2>
+    </div>
+    
+    <div class="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 mb-8 shadow-xl shadow-black/30 relative">
+      <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+      
+      <div class="space-y-4 mb-6">
+        <div>
+          <label for="fbDbUrl" class="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Database URL</label>
+          <input type="text" id="fbDbUrl" placeholder="https://project-id-default-rtdb.firebaseio.com" class="w-full bg-sla    --success: #45c98d;
     --radius-s: 8px;
     --radius-m: 14px;
     --radius-l: 20px;
